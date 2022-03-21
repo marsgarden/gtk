@@ -231,7 +231,7 @@ line_curve_intersect (const GskCurve   *curve1,
   const graphene_point_t *b = &curve1->line.points[1];
   graphene_point_t pts[4];
   float t[3];
-  int m, i;
+  int m, i, j;
 
   /* Rotate things to place curve1 on the x axis,
    * then solve curve2 for y == 0.
@@ -241,14 +241,18 @@ line_curve_intersect (const GskCurve   *curve1,
   m = get_cubic_roots (pts[0].y, pts[1].y, pts[2].y, pts[3].y, t);
 
   m = MIN (m, n);
+
+  j = 0;
   for (i = 0; i < m; i++)
     {
-      t2[i] = t[i];
-      gsk_curve_get_point (curve2, t[i], &p[i]);
-      find_point_on_line (a, b, &p[i], &t1[i]);
+      t2[j] = t[i];
+      gsk_curve_get_point (curve2, t2[j], &p[j]);
+      find_point_on_line (a, b, &p[i], &t1[j]);
+      if (acceptable (t1[j]))
+        j++;
     }
 
-  return m;
+  return j;
 }
 
 static void
