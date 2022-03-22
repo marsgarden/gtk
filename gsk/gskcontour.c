@@ -98,6 +98,8 @@ struct _GskContourClass
                                                  float                   distance,
                                                  GskLineJoin             line_join,
                                                  float                   miter_limit);
+  GskConvexity          (* get_convexity)       (const GskContour       *contour);
+  GskConvexity          (* compute_convexity)   (const GskContour       *contour);
 };
 
 static gsize
@@ -328,7 +330,7 @@ gsk_rect_contour_get_closest_point (const GskContour       *contour,
   const GskRectContour *self = (const GskRectContour *) contour;
   graphene_point_t t, p;
   float distance;
- 
+
   /* offset coords to be relative to rectangle */
   t.x = point->x - self->x;
   t.y = point->y - self->y;
@@ -385,7 +387,7 @@ gsk_rect_contour_get_closest_point (const GskContour       *contour,
     *out_pos = p;
 
   if (out_offset)
-    *out_offset = (t.x == 0.0 && self->width > 0 ? 2 - t.y : t.y) * ABS (self->height) + 
+    *out_offset = (t.x == 0.0 && self->width > 0 ? 2 - t.y : t.y) * ABS (self->height) +
                   (t.y == 1.0 ? 2 - t.x : t.x) * ABS (self->width);
 
   if (out_tangent)
@@ -564,6 +566,12 @@ gsk_rect_contour_offset (const GskContour *contour,
   gsk_contour_default_offset (contour, builder, distance, line_join, miter_limit);
 }
 
+static GskConvexity
+gsk_rect_contour_get_convexity (const GskContour *contour)
+{
+  return GSK_CONVEXITY_CONVEX;
+}
+
 static const GskContourClass GSK_RECT_CONTOUR_CLASS =
 {
   sizeof (GskRectContour),
@@ -584,7 +592,9 @@ static const GskContourClass GSK_RECT_CONTOUR_CLASS =
   gsk_rect_contour_get_winding,
   gsk_rect_contour_get_stroke_bounds,
   gsk_rect_contour_add_stroke,
-  gsk_rect_contour_offset
+  gsk_rect_contour_offset,
+  gsk_rect_contour_get_convexity,
+  gsk_rect_contour_get_convexity,
 };
 
 GskContour *
@@ -965,6 +975,12 @@ gsk_circle_contour_offset (const GskContour *contour,
   gsk_contour_default_offset (contour, builder, distance, line_join, miter_limit);
 }
 
+static GskConvexity
+gsk_circle_contour_get_convexity (const GskContour *contour)
+{
+  return GSK_CONVEXITY_CONVEX;
+}
+
 static const GskContourClass GSK_CIRCLE_CONTOUR_CLASS =
 {
   sizeof (GskCircleContour),
@@ -985,7 +1001,9 @@ static const GskContourClass GSK_CIRCLE_CONTOUR_CLASS =
   gsk_circle_contour_get_winding,
   gsk_circle_contour_get_stroke_bounds,
   gsk_circle_contour_add_stroke,
-  gsk_circle_contour_offset
+  gsk_circle_contour_offset,
+  gsk_circle_contour_get_convexity,
+  gsk_circle_contour_get_convexity,
 };
 
 GskContour *
@@ -1019,6 +1037,7 @@ struct _GskStandardContour
   GskContour contour;
 
   GskPathFlags flags;
+  GskConvexity convexity;
 
   gsize n_ops;
   gsize n_points;
@@ -1445,7 +1464,7 @@ gsk_standard_contour_get_closest_point (const GskContour       *contour,
             dist = test_dist;
           }
           //g_print ("!!! %zu: (%g-%g @ %g) dist %g\n", i, measure->start_progress, measure->end_progress, progress, dist);
-          /* double check that the point actually is closer */ 
+          /* double check that the point actually is closer */
           if (dist <= threshold)
             {
               if (out_distance)
@@ -1555,7 +1574,7 @@ gsk_standard_contour_add_segment (const GskContour *contour,
       gsk_curve_builder_to (&cut, builder);
       i = start_measure->op + 1;
     }
-  else 
+  else
     i = emit_move_to ? 0 : 1;
 
   for (; i < (end_measure ? end_measure->op : self->n_ops - 1); i++)
@@ -1740,6 +1759,27 @@ gsk_standard_contour_offset (const GskContour *contour,
   gsk_contour_default_offset (contour, builder, distance, line_join, miter_limit);
 }
 
+static GskConvexity
+gsk_standard_contour_get_convexity (const GskContour *contour)
+{
+  GskStandardContour *self = (GskStandardContour *) contour;
+
+  return self->convexity;
+}
+
+extern GskConvexity compute_convexity (const GskContour *contour);
+
+static GskConvexity
+gsk_standard_contour_compute_convexity (const GskContour *contour)
+{
+  GskStandardContour *self = (GskStandardContour *) contour;
+
+  if (self->convexity == GSK_CONVEXITY_UNKNOWN)
+    self->convexity = compute_convexity (contour);
+
+  return self->convexity;
+}
+
 static const GskContourClass GSK_STANDARD_CONTOUR_CLASS =
 {
   sizeof (GskStandardContour),
@@ -1760,7 +1800,9 @@ static const GskContourClass GSK_STANDARD_CONTOUR_CLASS =
   gsk_standard_contour_get_winding,
   gsk_standard_contour_get_stroke_bounds,
   gsk_standard_contour_add_stroke,
-  gsk_standard_contour_offset
+  gsk_standard_contour_offset,
+  gsk_standard_contour_get_convexity,
+  gsk_standard_contour_compute_convexity,
 };
 
 /* You must ensure the contour has enough size allocated,
@@ -1782,6 +1824,7 @@ gsk_standard_contour_init (GskContour             *contour,
   self->contour.klass = &GSK_STANDARD_CONTOUR_CLASS;
 
   self->flags = flags;
+  self->convexity = GSK_CONVEXITY_UNKNOWN;
   self->n_ops = n_ops;
   self->n_points = n_points;
   self->points = (graphene_point_t *) &self->ops[n_ops];
@@ -1975,5 +2018,17 @@ gsk_contour_dup (const GskContour *src)
   gsk_contour_copy (copy, src);
 
   return copy;
+}
+
+GskConvexity
+gsk_contour_get_convexity (const GskContour *contour)
+{
+  return contour->klass->get_convexity (contour);
+}
+
+GskConvexity
+gsk_contour_compute_convexity (const GskContour *contour)
+{
+  return contour->klass->compute_convexity (contour);
 }
 

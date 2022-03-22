@@ -354,4 +354,11 @@ typedef enum
   GSK_GL_UNIFORM_TYPE_VEC4,
 } GskGLUniformType;
 
+typedef enum
+{
+  GSK_CONVEXITY_UNKNOWN,
+  GSK_CONVEXITY_CONVEX,
+  GSK_CONVEXITY_CONCAVE,
+} GskConvexity;
+
 #endif /* __GSK_TYPES_H__ */

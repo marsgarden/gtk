@@ -104,6 +104,11 @@ gboolean                gsk_path_get_stroke_bounds              (GskPath        
                                                                  graphene_rect_t        *bounds);
 
 GDK_AVAILABLE_IN_ALL
+GskConvexity            gsk_path_get_convexity                  (GskPath                *self);
+GDK_AVAILABLE_IN_ALL
+GskConvexity            gsk_path_compute_convexity              (GskPath                *self);
+
+GDK_AVAILABLE_IN_ALL
 gboolean                gsk_path_foreach                        (GskPath                *self,
                                                                  GskPathForeachFlags     flags,
                                                                  GskPathForeachFunc      func,

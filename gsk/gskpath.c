@@ -1241,6 +1241,54 @@ gsk_path_get_stroke_bounds (GskPath         *path,
 }
 
 /**
+ * gsk_path_get_convexity:
+ * @self: a `GskPath`
+ *
+ * Returns information about whether this path is convex.
+ *
+ * Note that this function may return `GSK_CONVEXITY_UNKNOWN`
+ * if the information has not been computed yet. To force it
+ * to be computed, use [method@Gsk.Path.compute_convexity]
+ * instead.
+ *
+ * Returns: the available `GskConvexity` information for @self
+ */
+GskConvexity
+gsk_path_get_convexity (GskPath *self)
+{
+  if (self->n_contours > 1)
+    return GSK_CONVEXITY_CONCAVE;
+
+   return gsk_contour_get_convexity (gsk_path_get_contour (self, 0));
+}
+
+/**
+ * gsk_path_compute_convexity:
+ * @self: a `GskPath`
+ *
+ * Returns information about whether this path is convex.
+ *
+ * Note that this function will compute the convexity information
+ * if it has not available yet, so it will never return
+ * `GSK_CONVEXITY_UNKNOWN`. If you want to avoid the computation
+ * overhead, see [method@Gsk.Path.get_convexity].
+ *
+ * Returns: `GSK_CONVEXITY_CONVEX` if @self is convex, and
+ *   `GSK_CONVEXITY_CONCAVE` if it isn't
+ */
+GskConvexity
+gsk_path_compute_convexity (GskPath *self)
+{
+  if (self->n_contours == 0)
+    return GSK_CONVEXITY_CONVEX;
+
+  if (self->n_contours > 1)
+    return GSK_CONVEXITY_CONCAVE;
+
+  return gsk_contour_compute_convexity (gsk_path_get_contour (self, 0));
+}
+
+/**
  * gsk_path_stroke:
  * @self: a `GskPath`
  * @stroke: stroke parameters

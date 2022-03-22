@@ -27,7 +27,7 @@
 
 G_BEGIN_DECLS
 
-typedef enum 
+typedef enum
 {
   GSK_PATH_FLAT,
   GSK_PATH_CLOSED
@@ -117,6 +117,9 @@ void                    gsk_contour_default_offset              (const GskContou
                                                                  float                   distance,
                                                                  GskLineJoin             line_join,
                                                                  float                   miter_limit);
+
+GskConvexity            gsk_contour_get_convexity               (const GskContour       *contour);
+GskConvexity            gsk_contour_compute_convexity           (const GskContour       *contour);
 
 G_END_DECLS
 
