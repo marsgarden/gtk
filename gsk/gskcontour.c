@@ -100,6 +100,7 @@ struct _GskContourClass
                                                  float                   miter_limit);
   GskConvexity          (* get_convexity)       (const GskContour       *contour);
   GskConvexity          (* compute_convexity)   (const GskContour       *contour);
+  GskContour *          (* reverse)             (const GskContour       *contour);
 };
 
 static gsize
@@ -572,6 +573,17 @@ gsk_rect_contour_get_convexity (const GskContour *contour)
   return GSK_CONVEXITY_CONVEX;
 }
 
+static GskContour *
+gsk_rect_contour_reverse (const GskContour *contour)
+{
+  const GskRectContour *self = (const GskRectContour *) contour;
+
+  return gsk_rect_contour_new (&GRAPHENE_RECT_INIT (self->x + self->width,
+                                                    self->y,
+                                                    - self->width,
+                                                    self->height));
+}
+
 static const GskContourClass GSK_RECT_CONTOUR_CLASS =
 {
   sizeof (GskRectContour),
@@ -595,6 +607,7 @@ static const GskContourClass GSK_RECT_CONTOUR_CLASS =
   gsk_rect_contour_offset,
   gsk_rect_contour_get_convexity,
   gsk_rect_contour_get_convexity,
+  gsk_rect_contour_reverse,
 };
 
 GskContour *
@@ -981,6 +994,17 @@ gsk_circle_contour_get_convexity (const GskContour *contour)
   return GSK_CONVEXITY_CONVEX;
 }
 
+static GskContour *
+gsk_circle_contour_reverse (const GskContour *contour)
+{
+  const GskCircleContour *self = (const GskCircleContour *) contour;
+
+  return gsk_circle_contour_new (&self->center,
+                                 self->radius,
+                                 self->end_angle,
+                                 self->start_angle);
+}
+
 static const GskContourClass GSK_CIRCLE_CONTOUR_CLASS =
 {
   sizeof (GskCircleContour),
@@ -1004,6 +1028,7 @@ static const GskContourClass GSK_CIRCLE_CONTOUR_CLASS =
   gsk_circle_contour_offset,
   gsk_circle_contour_get_convexity,
   gsk_circle_contour_get_convexity,
+  gsk_circle_contour_reverse,
 };
 
 GskContour *
@@ -1762,7 +1787,7 @@ gsk_standard_contour_offset (const GskContour *contour,
 static GskConvexity
 gsk_standard_contour_get_convexity (const GskContour *contour)
 {
-  GskStandardContour *self = (GskStandardContour *) contour;
+  const GskStandardContour *self = (const GskStandardContour *) contour;
 
   return self->convexity;
 }
@@ -1778,6 +1803,59 @@ gsk_standard_contour_compute_convexity (const GskContour *contour)
     self->convexity = compute_convexity (contour);
 
   return self->convexity;
+}
+
+static gboolean
+add_reverse (GskPathOperation        op,
+             const graphene_point_t *pts,
+             gsize                   n_pts,
+             float                   weight,
+             gpointer                user_data)
+{
+  GskPathBuilder *builder = user_data;
+  GskCurve c, r;
+
+  if (op == GSK_PATH_MOVE)
+    return TRUE;
+
+  if (op == GSK_PATH_CLOSE)
+    op = GSK_PATH_LINE;
+
+  gsk_curve_init_foreach (&c, op, pts, n_pts, weight);
+  gsk_curve_reverse (&c, &r);
+  gsk_curve_builder_to (&r, builder);
+
+  return TRUE;
+}
+
+static GskContour *
+gsk_standard_contour_reverse (const GskContour *contour)
+{
+  const GskStandardContour *self = (const GskStandardContour *) contour;
+  GskPathBuilder *builder;
+  GskPath *path;
+  GskContour *res;
+
+  builder = gsk_path_builder_new ();
+
+  gsk_path_builder_move_to (builder, self->points[self->n_points - 1].x,
+                                     self->points[self->n_points - 1].y);
+
+  for (int i = self->n_ops - 1; i >= 0; i--)
+    gsk_pathop_foreach (self->ops[i], add_reverse, builder);
+
+  if (self->flags & GSK_PATH_CLOSED)
+    gsk_path_builder_close (builder);
+
+  path = gsk_path_builder_free_to_path (builder);
+
+  g_assert (gsk_path_get_n_contours (path) == 1);
+
+  res = gsk_contour_dup (gsk_path_get_contour (path, 0));
+
+  gsk_path_unref (path);
+
+  return res;
 }
 
 static const GskContourClass GSK_STANDARD_CONTOUR_CLASS =
@@ -1803,6 +1881,7 @@ static const GskContourClass GSK_STANDARD_CONTOUR_CLASS =
   gsk_standard_contour_offset,
   gsk_standard_contour_get_convexity,
   gsk_standard_contour_compute_convexity,
+  gsk_standard_contour_reverse,
 };
 
 /* You must ensure the contour has enough size allocated,
@@ -2018,6 +2097,12 @@ gsk_contour_dup (const GskContour *src)
   gsk_contour_copy (copy, src);
 
   return copy;
+}
+
+GskContour *
+gsk_contour_reverse (const GskContour *src)
+{
+  return src->klass->reverse (src);
 }
 
 GskConvexity

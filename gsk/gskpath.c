@@ -1289,6 +1289,28 @@ gsk_path_compute_convexity (GskPath *self)
 }
 
 /**
+ * gsk_path_reverse:
+ * @self: a `GskPath`
+ *
+ * Creates a path that taverses the same contours as
+ * @self, the other way around.
+ *
+ * Returns: the reverse of @self
+ */
+GskPath *
+gsk_path_reverse (GskPath *self)
+{
+  GskPathBuilder *builder;
+
+  builder = gsk_path_builder_new ();
+
+  for (int i = 0; i < self->n_contours; i++)
+    gsk_path_builder_add_contour (builder, gsk_contour_reverse (gsk_path_get_contour (self, i)));
+
+  return gsk_path_builder_free_to_path (builder);
+}
+
+/**
  * gsk_path_stroke:
  * @self: a `GskPath`
  * @stroke: stroke parameters
