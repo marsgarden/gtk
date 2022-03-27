@@ -733,17 +733,17 @@ parse_circle (const char **p,
   const char *o = *p;
   double r1, r2, r3, mx, my, ex, ey;
 
-  /* Check for M%g,%gA%g,%g,0,1,0,%g,%gA%g,%g,0,1,0,%g,%g
+  /* Check for M%g,%gA%g,%g,0,1,0,%g,%gA%g,%g,0,1,0,%g,%gz
    * without any intervening whitespace
    */
   if (parse_coordinate_pair (p, sx, sy) &&
       parse_string (p, "A") &&
       parse_coordinate_pair (p, r, &r1) &&
-      parse_string (p, "0 0 0") &&
+      parse_string (p, "0,1,0,") &&
       parse_coordinate_pair (p, &mx, &my) &&
       parse_string (p, "A") &&
       parse_coordinate_pair (p, &r2, &r3) &&
-      parse_string (p, "0 0 0") &&
+      parse_string (p, "0,1,0,") &&
       parse_coordinate_pair (p, &ex, &ey) &&
       parse_string (p, "z") &&
       *r == r1 && r1 == r2 && r2 == r3 &&
