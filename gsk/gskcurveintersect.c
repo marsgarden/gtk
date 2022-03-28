@@ -82,15 +82,18 @@ align_points (const graphene_point_t *p,
   graphene_vec2_t n1;
   float angle;
   float s, c;
+  float dist;
 
   get_tangent (a, b, &n1);
   angle = - atan2 (graphene_vec2_get_y (&n1), graphene_vec2_get_x (&n1));
   sincosf (angle, &s, &c);
 
+  dist = sqrtf ((a->x - b->x)*(a->x - b->x) + (a->y - b->y)*(a->y - b->y));
+
   for (int i = 0; i < n; i++)
     {
-      q[i].x = (p[i].x - a->x) * c - (p[i].y - a->y) * s;
-      q[i].y = (p[i].x - a->x) * s + (p[i].y - a->y) * c;
+      q[i].x = ((p[i].x - a->x) * c - (p[i].y - a->y) * s) / dist;
+      q[i].y = ((p[i].x - a->x) * s + (p[i].y - a->y) * c) / dist;
     }
 }
 
@@ -100,12 +103,10 @@ find_point_on_line (const graphene_point_t *p1,
                     const graphene_point_t *q,
                     float                  *t)
 {
-  float tx = p2->x - p1->x;
-  float ty = p2->y - p1->y;
-  float sx = q->x - p1->x;
-  float sy = q->y - p1->y;
-
-  *t = (tx*sx + ty*sy) / (tx*tx + ty*ty);
+  if (p2->x != p1->x)
+    *t = (q->x - p1->x) / (p2->x - p1->x);
+  else
+    *t = (q->y - p1->y) / (p2->y - p1->y);
 }
 
 static float
